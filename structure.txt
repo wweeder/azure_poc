@@ -1,0 +1,9 @@
+azure_poc/
+  terraform/
+    main.tf
+    variables.tf
+    outputs.tf
+    providers.tf
+    versions.tf
+  app/
+  pipelines/
