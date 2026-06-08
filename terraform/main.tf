@@ -79,7 +79,7 @@ resource "azurerm_storage_account" "main" {
 
 resource "azurerm_storage_container" "datalake" {
   name                  = "datalake"
-  storage_account_id = azurerm_storage_account.main.id
+  storage_account_id    = azurerm_storage_account.main.id
   container_access_type = "private"
 }
 
@@ -97,8 +97,8 @@ resource "azurerm_container_app_environment" "main" {
   infrastructure_subnet_id   = azurerm_subnet.container_apps.id
 
   workload_profile {
-  name                  = "Consumption"
-  workload_profile_type = "Consumption"
+    name                  = "Consumption"
+    workload_profile_type = "Consumption"
   }
 }
 
@@ -107,6 +107,7 @@ resource "azurerm_container_app" "dev" {
   container_app_environment_id = azurerm_container_app_environment.main.id
   resource_group_name          = azurerm_resource_group.main.name
   revision_mode                = "Single"
+  workload_profile_name        = "Consumption"
 
   identity {
     type         = "UserAssigned"
@@ -156,6 +157,7 @@ resource "azurerm_container_app" "qa" {
   container_app_environment_id = azurerm_container_app_environment.main.id
   resource_group_name          = azurerm_resource_group.main.name
   revision_mode                = "Single"
+  workload_profile_name        = "Consumption"
 
   identity {
     type         = "UserAssigned"

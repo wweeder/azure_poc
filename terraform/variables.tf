@@ -22,3 +22,9 @@ variable "subscription_id" {
   type        = string
   description = "Azure subscription ID"
 }
+
+variable "github_pat" {
+  type        = string
+  description = "GitHub access token for Azure DevOps GitHub service connection"
+  sensitive   = true
+}
