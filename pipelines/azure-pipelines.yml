@@ -1,8 +1,37 @@
-trigger:
-- main
+data "azurerm_client_config" "current" {}
 
-pool:
-  vmImage: ubuntu-latest
+resource "azuread_application" "pipeline" {
+  display_name = "sp-azure-poc-pipeline"
+}
 
-steps:
-- script: echo "Azure DevOps pipeline wired successfully"
+resource "azuread_service_principal" "pipeline" {
+  client_id = azuread_application.pipeline.client_id
+}
+
+resource "azuread_service_principal_password" "pipeline" {
+  service_principal_id = azuread_service_principal.pipeline.id
+}
+
+resource "azurerm_role_assignment" "pipeline_contributor" {
+  scope                = azurerm_resource_group.main.id
+  role_definition_name = "Contributor"
+  principal_id         = azuread_service_principal.pipeline.object_id
+}
+
+resource "azuredevops_serviceendpoint_azurerm" "azurerm" {
+  project_id                             = azuredevops_project.main.id
+  service_endpoint_name                  = "azure-poc-azurerm"
+  azurerm_spn_tenantid                   = data.azurerm_client_config.current.tenant_id
+  azurerm_subscription_id                = var.subscription_id
+  azurerm_subscription_name              = "Azure subscription 1"
+  service_endpoint_authentication_scheme = "ServicePrincipal"
+
+  credentials {
+    serviceprincipalid  = azuread_application.pipeline.client_id
+    serviceprincipalkey = azuread_service_principal_password.pipeline.value
+  }
+
+  depends_on = [
+    azurerm_role_assignment.pipeline_contributor
+  ]
+}
