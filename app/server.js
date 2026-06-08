@@ -19,6 +19,7 @@ app.get("/", (req, res) => {
         <p><strong>My preferred branching strategy is a main branch with feature branches, with the app being environment agnostic and consuming environment specific parameters. This one artifact was deployed in the example QA and DEV environments, as shown in the variable values below </strong></p>
         <p><strong>I hope that you will find that this a suitable demonstration of my ability to deliver according to business needs, using whatever means are required!</strong></p>
         <p><strong>The codebase containing all terraform, pipeline and application code can be found here: https://github.com/wweeder/azure_poc </strong></p>
+        <p><strong>I will be happy to screen share and show the various azure components and methods used!</strong></p>
         <p><strong>Example code version:</strong> ${buildVersion}</p>
         <p><strong>Running environment:</strong> ${environment}</p>
         <p><strong>Data lake content loaded from:</strong> ${messagePath}</p>
