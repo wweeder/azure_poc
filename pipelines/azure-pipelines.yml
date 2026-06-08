@@ -1,37 +1,84 @@
-data "azurerm_client_config" "current" {}
+trigger:
+- main
 
-resource "azuread_application" "pipeline" {
-  display_name = "sp-azure-poc-pipeline"
-}
+pool:
+  vmImage: ubuntu-latest
 
-resource "azuread_service_principal" "pipeline" {
-  client_id = azuread_application.pipeline.client_id
-}
+variables:
+- group: azure-poc-vars
+- name: IMAGE_TAG
+  value: $(Build.BuildId)
+- name: FULL_IMAGE_NAME
+  value: $(ACR_LOGIN_SERVER)/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
 
-resource "azuread_service_principal_password" "pipeline" {
-  service_principal_id = azuread_service_principal.pipeline.id
-}
+stages:
+- stage: Build
+  jobs:
+  - job: BuildAndPush
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '20.x'
 
-resource "azurerm_role_assignment" "pipeline_contributor" {
-  scope                = azurerm_resource_group.main.id
-  role_definition_name = "Contributor"
-  principal_id         = azuread_service_principal.pipeline.object_id
-}
+    - script: |
+        cd app
+        npm ci
+        npm run lint
+      displayName: 'Static check / lint'
 
-resource "azuredevops_serviceendpoint_azurerm" "azurerm" {
-  project_id                             = azuredevops_project.main.id
-  service_endpoint_name                  = "azure-poc-azurerm"
-  azurerm_spn_tenantid                   = data.azurerm_client_config.current.tenant_id
-  azurerm_subscription_id                = var.subscription_id
-  azurerm_subscription_name              = "Azure subscription 1"
-  service_endpoint_authentication_scheme = "ServicePrincipal"
+    - task: AzureCLI@2
+      displayName: 'Build and push image to ACR'
+      inputs:
+        azureSubscription: 'azure-poc-azurerm'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          az acr login --name $(echo $(ACR_LOGIN_SERVER) | cut -d'.' -f1)
 
-  credentials {
-    serviceprincipalid  = azuread_application.pipeline.client_id
-    serviceprincipalkey = azuread_service_principal_password.pipeline.value
-  }
+          docker build \
+            -t $(FULL_IMAGE_NAME) \
+            ./app
 
-  depends_on = [
-    azurerm_role_assignment.pipeline_contributor
-  ]
-}
+          docker push $(FULL_IMAGE_NAME)
+
+- stage: DeployDev
+  dependsOn: Build
+  jobs:
+  - job: DeployDev
+    steps:
+    - task: AzureCLI@2
+      displayName: 'Deploy image to DEV Container App'
+      inputs:
+        azureSubscription: 'azure-poc-azurerm'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          az containerapp update \
+            --name $(DEV_CONTAINER_APP_NAME) \
+            --resource-group $(RESOURCE_GROUP_NAME) \
+            --image $(FULL_IMAGE_NAME) \
+            --set-env-vars \
+              APP_ENVIRONMENT=dev \
+              MESSAGE_PATH=/dev/message.json \
+              BUILD_VERSION=$(Build.BuildId)
+
+- stage: DeployQa
+  dependsOn: DeployDev
+  jobs:
+  - job: DeployQa
+    steps:
+    - task: AzureCLI@2
+      displayName: 'Deploy same image to QA Container App'
+      inputs:
+        azureSubscription: 'azure-poc-azurerm'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          az containerapp update \
+            --name $(QA_CONTAINER_APP_NAME) \
+            --resource-group $(RESOURCE_GROUP_NAME) \
+            --image $(FULL_IMAGE_NAME) \
+            --set-env-vars \
+              APP_ENVIRONMENT=qa \
+              MESSAGE_PATH=/qa/message.json \
+              BUILD_VERSION=$(Build.BuildId)
