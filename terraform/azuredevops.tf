@@ -57,6 +57,11 @@ resource "azuredevops_variable_group" "pipeline_vars" {
     name  = "DATALAKE_CONTAINER_NAME"
     value = azurerm_storage_container.datalake.name
   }
+  
+  variable {
+    name  = "AZURE_CLIENT_ID"
+    value = azurerm_user_assigned_identity.container_apps.client_id
+  }
 }
 
 resource "azuredevops_build_definition" "main" {
