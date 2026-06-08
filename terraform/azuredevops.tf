@@ -47,6 +47,16 @@ resource "azuredevops_variable_group" "pipeline_vars" {
     name  = "IMAGE_REPOSITORY"
     value = "demo-api"
   }
+
+  variable {
+    name  = "STORAGE_ACCOUNT_NAME"
+    value = azurerm_storage_account.main.name
+  }
+
+  variable {
+    name  = "DATALAKE_CONTAINER_NAME"
+    value = azurerm_storage_container.datalake.name
+  }
 }
 
 resource "azuredevops_build_definition" "main" {

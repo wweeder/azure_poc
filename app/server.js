@@ -1,4 +1,6 @@
 const express = require("express");
+const { DefaultAzureCredential } = require("@azure/identity");
+const { BlobServiceClient } = require("@azure/storage-blob");
 
 const app = express();
 
@@ -6,8 +8,59 @@ const port = process.env.PORT || 80;
 const environment = process.env.APP_ENVIRONMENT || "unknown";
 const messagePath = process.env.MESSAGE_PATH || "unset";
 const buildVersion = process.env.BUILD_VERSION || "local-dev";
+const storageAccountName = process.env.STORAGE_ACCOUNT_NAME || "";
+const datalakeContainerName = process.env.DATALAKE_CONTAINER_NAME || "datalake";
 
-app.get("/", (req, res) => {
+async function readDataLakeMessage() {
+  if (!storageAccountName || messagePath === "unset") {
+    return "Data lake not configured";
+  }
+
+  const credential = new DefaultAzureCredential();
+
+  const blobServiceClient = new BlobServiceClient(
+    `https://${storageAccountName}.blob.core.windows.net`,
+    credential
+  );
+
+  const containerClient =
+    blobServiceClient.getContainerClient(datalakeContainerName);
+
+  const blobName = messagePath.replace(/^\/+/, "");
+
+  const blobClient = containerClient.getBlobClient(blobName);
+
+  const download = await blobClient.download();
+
+  const content = await streamToString(download.readableStreamBody);
+
+  return content;
+}
+
+function streamToString(readableStream) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+
+    readableStream.on("data", (data) =>
+      chunks.push(data.toString())
+    );
+
+    readableStream.on("end", () =>
+      resolve(chunks.join(""))
+    );
+
+    readableStream.on("error", reject);
+  });
+}
+
+app.get("/", async (req, res) => {
+  let dataLakeContent;
+
+  try {
+    dataLakeContent = await readDataLakeMessage();
+  } catch (err) {
+    dataLakeContent = `Failed to read data lake content: ${err.message}`;
+  }
   res.type("html").send(`
     <html>
       <head><title>Welcome to Warren Weeder's Azure POC Demo!</title></head>
@@ -22,7 +75,8 @@ app.get("/", (req, res) => {
         <p><strong>I will be happy to screen share and show the various azure components and methods used!</strong></p>
         <p><strong>Example code version:</strong> ${buildVersion}</p>
         <p><strong>Running environment:</strong> ${environment}</p>
-        <p><strong>Data lake content loaded from:</strong> ${messagePath}</p>
+	<p><strong>Data lake path:</strong> ${messagePath}</p>
+        <p><strong>Data lake content:</strong> ${dataLakeContent}</p>
       </body>
     </html>
   `);

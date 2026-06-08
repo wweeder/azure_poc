@@ -82,6 +82,34 @@ resource "azurerm_storage_container" "datalake" {
   container_access_type = "private"
 }
 
+resource "azurerm_storage_blob" "dev_message" {
+  name                   = "dev/message.json"
+  storage_account_name   = azurerm_storage_account.main.name
+  storage_container_name = azurerm_storage_container.datalake.name
+  type                   = "Block"
+  content_type           = "application/json"
+
+  source_content = jsonencode({
+    environment = "dev"
+    message     = "Hello from DEV content stored in Azure Data Lake Gen2"
+    source      = "terraform-created ADLS blob"
+  })
+}
+
+resource "azurerm_storage_blob" "qa_message" {
+  name                   = "qa/message.json"
+  storage_account_name   = azurerm_storage_account.main.name
+  storage_container_name = azurerm_storage_container.datalake.name
+  type                   = "Block"
+  content_type           = "application/json"
+
+  source_content = jsonencode({
+    environment = "qa"
+    message     = "Hello from QA content stored in Azure Data Lake Gen2"
+    source      = "terraform-created ADLS blob"
+  })
+}
+
 resource "azurerm_role_assignment" "storage_blob_reader" {
   scope                = azurerm_storage_account.main.id
   role_definition_name = "Storage Blob Data Reader"
@@ -150,6 +178,13 @@ resource "azurerm_container_app" "dev" {
     }
   }
 
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image,
+      template[0].container[0].env
+    ]
+  }
+
   depends_on = [
     azurerm_role_assignment.acr_pull,
     azurerm_role_assignment.storage_blob_reader
@@ -203,6 +238,13 @@ resource "azurerm_container_app" "qa" {
         value = "/qa/message.json"
       }
     }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image,
+      template[0].container[0].env
+    ]
   }
 
   depends_on = [
