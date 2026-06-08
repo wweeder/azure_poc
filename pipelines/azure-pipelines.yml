@@ -85,4 +85,4 @@ stages:
               MESSAGE_PATH=/qa/message.json \
               STORAGE_ACCOUNT_NAME=$(STORAGE_ACCOUNT_NAME) \
               DATALAKE_CONTAINER_NAME=$(DATALAKE_CONTAINER_NAME) \
-	      BUILD_VERSION=$(Build.BuildId)
+              BUILD_VERSION=$(Build.BuildId)
