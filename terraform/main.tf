@@ -73,8 +73,7 @@ resource "azurerm_storage_account" "main" {
   location                 = azurerm_resource_group.main.location
   account_tier             = "Standard"
   account_replication_type = "LRS"
-
-  is_hns_enabled = true
+  is_hns_enabled           = true
 }
 
 resource "azurerm_storage_container" "datalake" {
@@ -112,6 +111,11 @@ resource "azurerm_container_app" "dev" {
   identity {
     type         = "UserAssigned"
     identity_ids = [azurerm_user_assigned_identity.container_apps.id]
+  }
+
+  registry {
+    server   = azurerm_container_registry.main.login_server
+    identity = azurerm_user_assigned_identity.container_apps.id
   }
 
   ingress {
@@ -162,6 +166,11 @@ resource "azurerm_container_app" "qa" {
   identity {
     type         = "UserAssigned"
     identity_ids = [azurerm_user_assigned_identity.container_apps.id]
+  }
+
+  registry {
+    server   = azurerm_container_registry.main.login_server
+    identity = azurerm_user_assigned_identity.container_apps.id
   }
 
   ingress {
